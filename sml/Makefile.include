@@ -1,0 +1,262 @@
+3FBL_SOURCES = \
+	sml/musculoSkeletalSystem/Joint.cc \
+	sml/musculoSkeletalSystem/Muscle.cc \
+	sml/musculoSkeletalSystem/MuscleJoint.cc \
+	sml/musculoSkeletalSystem/Sensor.cc \
+	sml/body/Init.cc \
+	sml/body/Sml.cc \
+	sml/body/GeyerSml.cc \
+	sml/neuralSystem/CentralClock.cc \
+	sml/neuralSystem/Connection.cc \
+	sml/neuralSystem/Entity.cc \
+	sml/neuralSystem/Interneuron.cc \
+	sml/neuralSystem/Motoneuron.cc \
+	sml/neuralSystem/ReflexController.cc \
+	sml/neuralSystem/TwitchingController.cc \
+	sml/sml-tools/OnlineCtrl.cc \
+	sml/sml-tools/EventManager.cc \
+	sml/sml-tools/EventManagerLimbState.cc \
+	sml/sml-tools/Settings.cc \
+	sml/sml-tools/Helper.cc \
+	sml/sml-tools/Optimization.cc \
+	sml/sml-tools/FitnessManager.cc \
+	sml/sml-tools/ParameterManager.cc \
+	sml/sml-tools/PhaseManager.cc \
+	sml/sml-tools/Logger.cc \
+	sml/sml-tools/PerturbationManager.cc \
+	sml/types/general.cc \
+	sml/types/musculoSkeletalSystem.cc \
+	sml/types/stateVariables.cc \
+	sml/types/IO.cc
+
+
+3FBL_HEADERS = \
+	sml/sml.hh
+
+3FBL_TOOLS_HEADERS = \
+	sml/sml-tools/OnlineCtrl.hh \
+	sml/sml-tools/Helper.hh \
+	sml/sml-tools/RungeKutta.hh \
+	sml/sml-tools/Settings.hh \
+	sml/sml-tools/EventManager.hh \
+	sml/sml-tools/Optimization.hh \
+	sml/sml-tools/FitnessManager.hh \
+	sml/sml-tools/ParameterManager.hh \
+	sml/sml-tools/PhaseManager.hh \
+	sml/sml-tools/Logger.hh \
+	sml/sml-tools/PerturbationManager.hh
+
+
+3FBL_MUSCULOSKELETAL_HEADERS = \
+	sml/musculoSkeletalSystem/Muscle.hh \
+	sml/musculoSkeletalSystem/MuscleJoint.hh \
+	sml/musculoSkeletalSystem/Sensor.hh \
+	sml/musculoSkeletalSystem/Joint.hh \
+
+3FBL_BODY_HEADERS = \
+	sml/body/Sml.hh \
+	sml/body/GeyerSml.hh
+	
+3FBL_NEURAL_HEADERS = \
+	sml/neuralSystem/ReflexController.hh \
+	sml/neuralSystem/TwitchingController.hh \
+	sml/neuralSystem/CentralClock.hh \
+	sml/neuralSystem/Connection.hh \
+	sml/neuralSystem/Entity.hh \
+	sml/neuralSystem/Interneuron.hh \
+	sml/neuralSystem/Motoneuron.hh
+
+3FBL_TYPES_HEADERS = \
+	sml/types/types.h \
+	sml/types/general.hh \
+	sml/types/IO.hh \
+	sml/types/musculoSkeletalSystem.hh \
+	sml/types/modelConstants.hh \
+	sml/types/stateVariables.hh
+
+
+3FBL_INSTALL_HEADERS = \
+	$(3FBL_HEADERS)
+
+
+ifeq ($(ENABLE_OPTIMIZATION),True)
+3FBL_PACKAGES = liboptimization-2.0 spinalDynamics
+else
+3FBL_PACKAGES = spinalDynamics
+endif
+
+
+
+# Make sure packages exist
+notexist = $(strip $(foreach i,$(3FBL_PACKAGES),$(if $(shell pkg-config --exists $(i) && echo 'yes'),,$(i))))
+
+ifneq ($(notexist),)
+$(info ***)
+$(info *** The following required dependencies cannot be found:)
+$(foreach i,$(notexist),$(info ***   $(i)))
+$(info ***)
+$(info *** Please install these depedendencies and try again)
+$(info ***)
+$(info )
+$(error )
+endif
+
+3FBL_CXXFLAGS = -I. $(shell pkg-config --cflags $(3FBL_PACKAGES)) -std=c++11 -fPIC
+
+
+ifeq ($(ENABLE_DEBUG),True)
+3FBL_CXXFLAGS += -g
+else
+3FBL_CXXFLAGS += -O3
+endif
+
+3FBL_LDFLAGS = -L/usr/lib -lm -ldl $(shell pkg-config --libs $(3FBL_PACKAGES))
+3FBL_LDFLAGS_DYNAMIC ?=
+3FBL_LDFLAGS_STATIC ?=
+
+3FBL_CXX_OBJECTS = $(3FBL_SOURCES:%.cc=$(OBJDIR)/%.o)
+3FBL_OBJECTS = $(3FBL_CXX_OBJECTS:%.c=$(OBJDIR)/%.o)
+
+3FBL_DEPS = $(3FBL_OBJECTS:%.o=%.d)
+
+3FBL_TARGET_SHARED = sml/libsml.$(SHARED_EXT)
+3FBL_TARGET_STATIC = sml/libsml.a
+
+3FBL_LDFLAGS += -lpthread
+3FBL_LDFLAGS += -lboost_filesystem
+3FBL_LDFLAGS += -lboost_system
+
+
+
+ifeq ($(UNAME),Darwin)
+	3FBL_LIB_NAME_FLAGS = -dynamiclib -Wl,-headerpad_max_install_names,-undefined,dynamic_lookup,-compatibility_version,$(VERSION_MAJOR),-current_version,$(VERSION_MAJOR),-install_name,/Users/emanueleformento/Documents/PhD/LowerLimbModel/libnmm/sml/libsml.$(VERSION_MAJOR).$(SHARED_EXT)
+	#3FBL_LDFLAGS += -lrt
+else
+	3FBL_LIB_NAME_FLAGS = -Wl,-soname,$(notdir $(3FBL_TARGET_SHARED)).$(VERSION_MAJOR)
+	3FBL_LDFLAGS += -lrt
+endif 
+
+
+
+
+3FBL_DOC_CXXFLAGS = $(3FBL_CXXFLAGS)
+
+
+
+TARGETS += $(3FBL_TARGET_SHARED) $(3FBL_TARGET_STATIC)
+CLEANFILES = $(3FBL_OBJECTS) $(3FBL_DEPS)
+
+GCH_FILES =
+
+-include $(3FBL_DEPS) sml/sml.hh.d
+
+ifeq ($(ENABLE_OPTIMIZATION),True)
+3FBL_CXXFLAGS += -DOPTIMIZATION
+endif
+
+ifeq ($(ENABLE_DEBUG),True)
+3FBL_CXXFLAGS += -DDEBUG
+endif
+
+ifeq ($(REAL_TIME),True)
+3FBL_CXXFLAGS += -DREAL_TIME
+endif
+
+ifeq ($(VERSION_MAJOR),2)
+3FBL_CXXFLAGS += -DTEST_VERSION
+endif
+3FBL_CXXFLAGS += -DVERSION=$(VERSION_MAJOR)
+
+$(OBJDIR)/sml/%.o: sml/%.cc $(GCH_FILES)
+	$(call vecho,[CXX] $@) \
+	mkdir -p $(dir $@); \
+	$(CXX) $(3FBL_CXXFLAGS) -include sml/sml.hh -fPIC -MMD -c -o $@ $<
+
+$(3FBL_TARGET_STATIC): $(3FBL_OBJECTS)
+	$(call vecho,[AR] $@)					\
+	rm -f $@; $(AR) r $@ $^ 2>/dev/null &&				\
+	$(RANLIB) $@
+
+$(3FBL_TARGET_SHARED): $(3FBL_OBJECTS)
+	$(call vecho,[LD] $@) $(CXX) $(SHARED_FLAG) $(3FBL_LIB_NAME_FLAGS) -o $@ $^ $(3FBL_LDFLAGS) $(3FBL_LDFLAGS_DYNAMIC)
+
+generate-docs:
+	$(call vecho,[CLDOC] generate) \
+	cldoc generate $(3FBL_DOC_CXXFLAGS) -- --output html --merge docs --quiet $(3FBL_SOURCES) $(3FBL_HEADERS) sml/sml.h sml/types.h
+
+docs:
+	$(call vecho,[CLDOC] serve) \
+	cldoc serve html
+
+install-libsml-headers: $(3FBL_INSTALL_HEADERS)
+	@$(call vecho,[INSTALL] sml/libsml headers) \
+	mkdir -p $(DESTDIR)$(PKGINCLUDEDIR); \
+	cp $(3FBL_INSTALL_HEADERS) $(DESTDIR)$(PKGINCLUDEDIR)/
+	
+install-libsml-headers-extra: $(3FBL_TYPES_HEADERS) $(3FBL_TOOLS_HEADERS) $(3FBL_MUSCULOSKELETAL_HEADERS)
+	@$(call vecho,[INSTALL] sml/libsml/types headers) \
+	mkdir -p $(DESTDIR)$(PKGINCLUDEDIR)/types/; \
+	cp $(3FBL_TYPES_HEADERS) $(DESTDIR)$(PKGINCLUDEDIR)/types/
+	@$(call vecho,[INSTALL] sml/libsml/tools headers) \
+	mkdir -p $(DESTDIR)$(PKGINCLUDEDIR)/sml-tools/; \
+	cp $(3FBL_TOOLS_HEADERS) $(DESTDIR)$(PKGINCLUDEDIR)/sml-tools/
+	@$(call vecho,[INSTALL] sml/libsml/musculoSkeletalSystem headers) \
+	mkdir -p $(DESTDIR)$(PKGINCLUDEDIR)/musculoSkeletalSystem/; \
+	cp $(3FBL_MUSCULOSKELETAL_HEADERS) $(DESTDIR)$(PKGINCLUDEDIR)/musculoSkeletalSystem/
+	@$(call vecho,[INSTALL] sml/libsml/neuralSystem headers) \
+	mkdir -p $(DESTDIR)$(PKGINCLUDEDIR)/neuralSystem/; \
+	cp $(3FBL_NEURAL_HEADERS) $(DESTDIR)$(PKGINCLUDEDIR)/neuralSystem/
+	@$(call vecho,[INSTALL] sml/libsml/body headers) \
+	mkdir -p $(DESTDIR)$(PKGINCLUDEDIR)/body/; \
+	cp $(3FBL_BODY_HEADERS) $(DESTDIR)$(PKGINCLUDEDIR)/body/
+
+3FBL_TARGET_STATIC_INSTALL_REAL_NAME = $(3FBL_TARGET_SHARED:sml/%.$(SHARED_EXT)=%)$(STATIC_EXT_PREFIX).$(VERSION_MAJOR).$(VERSION_MINOR)$(STATIC_EXT_SUFFIX)
+3FBL_TARGET_SHARED_INSTALL_REAL_NAME = $(3FBL_TARGET_SHARED:sml/%.$(SHARED_EXT)=%)$(SHARED_EXT_PREFIX).$(VERSION_MAJOR).$(VERSION_MINOR)$(SHARED_EXT_SUFFIX)
+3FBL_TARGET_SHARED_INSTALL_SO_NAME = $(3FBL_TARGET_SHARED:sml/%.$(SHARED_EXT)=%)$(SHARED_EXT_PREFIX).$(VERSION_MAJOR)$(SHARED_EXT_SUFFIX)
+
+install-libsml-libs:
+	@$(call vecho,[INSTALL] sml/libsml) \
+	mkdir -p $(DESTDIR)$(PKGLIBDIR); \
+	cp $(3FBL_TARGET_STATIC) $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_STATIC_INSTALL_REAL_NAME); \
+	cp $(3FBL_TARGET_SHARED) $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_SHARED_INSTALL_REAL_NAME); \
+	ln -f -s $(3FBL_TARGET_SHARED_INSTALL_REAL_NAME) $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_SHARED_INSTALL_SO_NAME); \
+	#ln -f -s $(3FBL_TARGET_SHARED_INSTALL_SO_NAME) $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_SHARED:sml/%=%)
+
+uninstall-libsml-libs:
+	@$(call vecho,[UNINSTALL] sml/libsml) \
+	rm -f $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_STATIC_INSTALL_REAL_NAME) \
+	       $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_SHARED_INSTALL_REAL_NAME) \
+	       $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_SHARED_INSTALL_SO_NAME) \
+	       $(DESTDIR)$(PKGLIBDIR)/$(3FBL_TARGET_SHARED)
+
+uninstall-libsml-headers:
+	@$(call vecho,[UNINSTALL] sml/libsml headers) \
+	rm -Rf $(DESTDIR)$(PKGINCLUDEDIR) \
+	        $(DESTDIR)$(PKGINCLUDEDIRMAIN) 2>/dev/null || true
+	
+
+install-libsml-data: sml/sml-$(VERSION_MAJOR).0.pc
+	@$(call vecho,[INSTALL] sml/sml-$(VERSION_MAJOR).0.pc) \
+	mkdir -p $(DESTDIR)$(PKGLIBDIR)/pkgconfig; \
+	cp sml/sml-$(VERSION_MAJOR).0.pc $(DESTDIR)$(PKGLIBDIR)/pkgconfig/
+
+uninstall-libsml-data:
+	@$(call vecho,[UNINSTALL] sml/sml-$(VERSION_MAJOR).0.pc) \
+	rm -f $(DESTDIR)$(PKGLIBDIR)/pkgconfig/sml-$(VERSION_MAJOR).0.pc; \
+	rmdir $(DESTDIR)$(PKGLIBDIR)/pkgconfig 2>/dev/null || true
+
+install-libs: install-libsml-libs
+uninstall-libs: uninstall-libsml-libs
+
+install-headers: install-libsml-headers install-libsml-headers-extra
+uninstall-headers: uninstall-libsml-headers
+
+install-data: install-libsml-data
+uninstall-data: uninstall-libsml-data
+
+install-libsml: install-libsml-data install-libsml-libs install-libsml-headers install-libsml-headers-extra
+uninstall-libsml: uninstall-libsml-data uninstall-libsml-libs uninstall-libsml-headers uninstall-libsml-headers-extra
+
+libsml: $(3FBL_TARGET_SHARED) $(3FBL_TARGET_STATIC)
+
+.PHONY: docs generate-docs install-libsml install-libsml-libs install-libsml-data install-libsml-headers install-libsml-headers-extra libsml

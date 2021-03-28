@@ -1,0 +1,69 @@
+#!/bin/bash
+version=${1:-5}
+function removePC {
+find ./ | grep -r 'sml-[0-9]*\.[0-9]*\.pc' | xargs rm
+}
+
+if [[ $version == "spinalDynamics-cross" ]]
+then
+	cd sml/spinalDynamics
+	mkdir -p build
+	cd build
+	cmake .. -DCMAKE_INSTALL_PREFIX=$CROSS_COMPILE_LIBNMM_FOLDER/
+	make -j
+	make install
+	cd -
+	exit
+fi
+
+
+
+
+if [[ $version == "spinalDynamics" ]]
+then
+	cd sml/spinalDynamics
+	mkdir -p build 
+	cd build 
+	cmake ..
+	make -j 4
+	sudo make install
+	cd -
+	exit
+fi
+
+
+
+
+
+removePC
+current=`git branch | grep '*'`
+current=${current/* /}
+
+
+#git checkout ver/serie${version}Current
+
+if [[ $2 == 'clean' ]]
+then
+make clean
+fi
+
+./configure --version=$version.0
+#make ENABLE_DEBUG=True REAL_TIME=True -j 4
+#make ENABLE_DEBUG=True -j 4
+#make -j 4
+
+OPTI="ENABLE_OPTIMIZATION=False"
+if [[ $2 == 'ENABLE_OPTIMIZATION' ]]
+then
+	OPTI="ENABLE_OPTIMIZATION=True"
+fi
+make $OPTI -j 4
+make $OPTI install
+echo $current | xargs git checkout
+
+#if [[ $2 == 'clean' ]]
+#then
+#make clean
+#fi
+
+removePC

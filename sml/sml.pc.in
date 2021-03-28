@@ -1,0 +1,11 @@
+prefix=@prefix@
+libdir=${prefix}/lib
+includedir=${prefix}/include
+staticlib=${libdir}/libsml.a
+
+Name: sml
+Description: sml control library
+Requires:
+Version: @version@
+Cflags: -I${includedir}/sml-@version_major@.0 @pc_cflags@
+Libs: -L${libdir} -l:libsml.so.@version_major@.0 @pc_libs@

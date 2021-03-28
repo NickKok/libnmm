@@ -1,0 +1,164 @@
+#!/usr/bin/python
+
+from optparse import OptionParser
+import os, re, platform, shutil
+
+parser = OptionParser()
+
+parser.add_option("--prefix",
+                  dest="prefix",
+                  help="install architecture-independent files in PREFIX [/usr/local]",
+                  metavar="DIR",
+		  default=os.environ['HOME']+"/.local/usr")
+
+parser.add_option("--exec-prefix",
+                  dest="exec_prefix",
+                  help="install architecture-dependent files in EPREFIX [PREFIX]",
+                  metavar="DIR")
+
+parser.add_option("--bindir",
+                  dest="bindir",
+                  help="user executables [EPREFIX/bin]",
+                  metavar="DIR")
+
+parser.add_option("--libexecdir",
+                  dest="libexecdir",
+                  help="program executables [EPREFIX/libexec]",
+                  metavar="DIR")
+
+parser.add_option("--sysconfdir",
+                  dest="sysconfdir",
+                  help="read-only single-machine data [PREFIX/etc]",
+                  metavar="DIR")
+
+parser.add_option("--datarootdir",
+                  dest="datarootdir",
+                  help="read-only arch.-independent data root [PREFIX/share]",
+                  metavar="DIR")
+
+parser.add_option("--datadir",
+                  dest="datadir",
+                  help="read-only arch.-independent data [DATAROOTDIR]",
+                  metavar="DIR")
+
+parser.add_option("--mandir",
+                  dest="mandir",
+                  help="man documentation [DATAROOTDIR/man]",
+                  metavar="DIR")
+
+parser.add_option("--enable-debug",
+                  dest="enable_debug",
+                  help="enable debugging",
+                  action='store_const',
+                  const=True,
+                  default=False)
+
+parser.add_option("--enable-optimization",
+                  dest="enable_optimization",
+                  help="enable optimization framework handling",
+                  action='store_const',
+                  const=True,
+                  default=True)
+
+parser.add_option("--version",
+                  dest="version",
+                  help="choose version number",
+                  default="1.0")
+
+
+j = os.path.join
+
+(options, args) = parser.parse_args()
+
+
+version = options.version.split('.')
+
+if len(version) > 0:
+    options.version_major = version[0]
+
+if len(version) > 1:
+    options.version_minor = version[1]
+
+if len(version) > 2:
+    options.version_micro = version[2]
+
+if not options.exec_prefix:
+    options.exec_prefix = options.prefix
+
+if not options.bindir:
+    options.bindir = j(options.exec_prefix, "bin")
+
+if not options.libexecdir:
+    options.libexecdir = j(options.exec_prefix, "libexec")
+
+if not options.sysconfdir:
+    options.sysconfdir = j(options.prefix, "etc")
+
+if not options.datarootdir:
+    options.datarootdir = j(options.prefix, "share")
+
+if not options.datadir:
+    options.datadir = options.datarootdir
+
+if not options.mandir:
+    options.mandir = options.datarootdir
+
+if platform.system() == 'Darwin':
+    options.pc_cflags = '-stdlib=libc++'
+    options.pc_libs = '-lc++'
+else:
+    options.pc_cflags = ''
+    options.pc_libs = ''
+
+root = os.path.dirname(__file__)
+cfgdir = root
+
+try:
+    os.mkdir(cfgdir)
+except:
+    pass
+
+expand_files = {
+    j('sml', 'sml.pc.in'): j('sml', 'sml-' + options.version_major + '.0' + '.pc'),
+}
+
+r = re.compile('@([a-z_][a-z0-9_]*)@', re.I)
+
+for fname in expand_files:
+    f = file(fname, 'r')
+    fw = file(expand_files[fname], 'w')
+
+    data = f.read()
+    data = r.sub(lambda x: getattr(options, x.group(1).lower()), data)
+    fw.write(data)
+
+    f.close()
+    fw.close()
+
+    shutil.copymode(fname, expand_files[fname])
+
+f = file(j(cfgdir, 'Makefile.include'), 'w')
+r = re.compile('\\$\\{([a-z_][a-z0-9_]*)\\}', re.I)
+
+def subst_options(options, m=None):
+    l = lambda x: subst_options(options, x)
+
+    if m is None:
+        for opt in options.__dict__:
+            setattr(options, opt, r.sub(l, str(getattr(options, opt))))
+    else:
+        oname = m.group(1)
+        val = getattr(options, oname)
+
+        setattr(options, oname, r.sub(l, str(getattr(options, oname))))
+        return getattr(options, oname)
+
+subst_options(options)
+
+for name in options.__dict__:
+    val = getattr(options, name)
+    f.write("%s = %s\n" % (name.upper(), str(val)))
+
+f.close()
+
+# vi:ts=4:et
